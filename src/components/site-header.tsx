@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
 import { LogoLockup } from "@/components/logo";
 
 const nav = [
@@ -18,6 +18,7 @@ export function SiteHeader() {
   const [signedIn, setSignedIn] = useState(false);
 
   useEffect(() => {
+    if (!isSupabaseConfigured()) return;
     supabase.auth.getSession().then(({ data }) => setSignedIn(!!data.session));
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSignedIn(!!s));
     return () => sub.subscription.unsubscribe();

@@ -36,17 +36,33 @@ export function isSupabaseConfigured(): boolean {
   return Boolean(url && key);
 }
 
+const notConfiguredError = () =>
+  new Error("Supabase is not configured. Set SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY in your environment.");
+
+function createUnavailableClient() {
+  const error = notConfiguredError();
+  const auth = {
+    getSession: async () => ({ data: { session: null }, error: null }),
+    getUser: async () => ({ data: { user: null }, error }),
+    onAuthStateChange: () => ({
+      data: { subscription: { unsubscribe() {} } },
+      error: null,
+    }),
+    signInWithPassword: async () => ({ data: { user: null, session: null }, error }),
+    signUp: async () => ({ data: { user: null, session: null }, error }),
+    signInWithOAuth: async () => ({ data: { user: null, session: null, url: null, provider: "google" }, error }),
+    signOut: async () => ({ error: null }),
+    setSession: async () => ({ data: { session: null, user: null }, error }),
+  };
+  return { auth } as unknown as ReturnType<typeof createClient<Database>>;
+}
+
 function createSupabaseClient() {
   const { url, key } = readSupabaseConfig();
 
   if (!url || !key) {
-    const missing = [
-      ...(!url ? ["SUPABASE_URL"] : []),
-      ...(!key ? ["SUPABASE_PUBLISHABLE_KEY"] : []),
-    ];
-    const message = `Missing Supabase environment variable(s): ${missing.join(", ")}. Set them in your deployment environment.`;
-    console.error(`[Supabase] ${message}`);
-    throw new Error(message);
+    console.warn("[Supabase] Missing environment variables. Auth and live data are disabled until they are set.");
+    return createUnavailableClient();
   }
 
   return createClient<Database>(url, key, {
